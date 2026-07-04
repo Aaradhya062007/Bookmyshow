@@ -10,7 +10,7 @@ SECRET_KEY = 'django-insecure-xuxo0!p9wzdp+fxhn8!uf&v+9f33a7xs%6dchk=c_y#2y&c-sh
 DEBUG = 'RENDER' not in os.environ
 
 # Allow local machine connections and your live Render URL
-ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '.onrender.com']
 RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
 if RENDER_EXTERNAL_HOSTNAME:
     ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
@@ -28,6 +28,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware', # Essential for production static files
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -56,7 +57,6 @@ TEMPLATES = [
 WSGI_APPLICATION = 'Bookmyseat.wsgi.application'
 
 # --- DATABASE CONFIGURATION ---
-# Default to local SQLite for local coding and running migrations on your laptop
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
@@ -64,7 +64,7 @@ DATABASES = {
     }
 }
 
-# Only switch database configurations if running live inside Render's system
+# Only switch to PostgreSQL if running live on Render
 if 'RENDER' in os.environ:
     DATABASE_URL = os.environ.get('DATABASE_URL')
     if DATABASE_URL:
@@ -86,6 +86,7 @@ USE_TZ = True
 # --- STATIC & MEDIA STORAGE ---
 STATIC_URL = 'static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 STATICFILES_DIRS = [BASE_DIR / 'static'] if (BASE_DIR / 'static').exists() else []
 
 MEDIA_URL = '/media/'
