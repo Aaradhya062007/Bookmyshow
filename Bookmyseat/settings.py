@@ -31,9 +31,25 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-# Ensure this casing matches your folder name!
 ROOT_URLCONF = 'Bookmyseat.urls'
 WSGI_APPLICATION = 'Bookmyseat.wsgi.application'
+
+# ADDED TEMPLATES CONFIGURATION
+TEMPLATES = [
+    {
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        'DIRS': [BASE_DIR / 'templates'],
+        'APP_DIRS': True,
+        'OPTIONS': {
+            'context_processors': [
+                'django.template.context_processors.debug',
+                'django.template.context_processors.request',
+                'django.contrib.auth.context_processors.auth',
+                'django.contrib.messages.context_processors.messages',
+            ],
+        },
+    },
+]
 
 DATABASES = {
     'default': dj_database_url.config(
@@ -42,7 +58,6 @@ DATABASES = {
     )
 }
 
-# Fallback to SQLite if no DATABASE_URL provided (for local development)
 if not DATABASES['default']:
     DATABASES['default'] = {
         'ENGINE': 'django.db.backends.sqlite3',
