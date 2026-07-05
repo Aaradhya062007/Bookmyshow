@@ -1,62 +1,66 @@
-from django.shortcuts import render, redirect ,get_object_or_404
-from .models import Movie,Theater,Seat,Booking
+# movies/views.py
+from django.shortcuts import render, get_object_or_404, redirect
+from django.db import transaction
 from django.contrib.auth.decorators import login_required
-from django.db import IntegrityError
+from .models import Movie, Theater, Seat, Booking
 
 def movie_list(request):
     search_query = request.GET.get('search')
+    movies = Movie.objects.all()
     if search_query:
-        movies = Movie.objects.filter(name__icontains=search_query)
-    else:
-        movies = Movie.objects.all()
+        movies = movies.filter(name__icontains=search_query)
     return render(request, 'movies/movie_list.html', {'movies': movies})
 
 def theater_list(request, movie_id):
+    # Using select_related to optimize database queries
     movie = get_object_or_404(Movie, id=movie_id)
-    theater = Theater.objects.filter(movie=movie)
-    return render(request, 'movies/theater_list.html', {'movie': movie, 'theaters': theater})
+    theaters = Theater.objects.filter(movie=movie).select_related('movie')
+    return render(request, 'movies/theater_list.html', {'movie': movie, 'theaters': theaters})
 
 @login_required(login_url='/login/')
 def book_seats(request, theater_id):
-    theaters = get_object_or_404(Theater, id=theater_id)
-    seats = Seat.objects.filter(theater=theaters)
+    theater = get_object_or_404(Theater, id=theater_id)
     
     if request.method == 'POST':
-        selected_Seats = request.POST.getlist('seats')
-        error_seats = []
+        selected_seat_ids = request.POST.getlist('seats')
         
-        if not selected_Seats:
+        if not selected_seat_ids:
             return render(request, "movies/seat_selection.html", {
-                'theater': theaters,
-                'seats': seats,
-                'error': "No seat selected"
+                'theater': theater,
+                'seats': Seat.objects.filter(theater=theater),
+                'error': "No seats selected."
             })
-            
-        for seat_id in selected_Seats:
-            seat = get_object_or_404(Seat, id=seat_id, theater=theaters)
-            if seat.is_booked:
-                error_seats.append(seat.seat_number)
-                continue
-            try:
-                Booking.objects.create(
-                    user=request.user,
-                    seat=seat,
-                    movie=theaters.movie,
-                    theater=theaters
-                )
-                seat.is_booked = True
-                seat.save()
-            except IntegrityError:
-                error_seats.append(seat.seat_number)
-                
-        if error_seats:
-            error_message = f"The following seats are already booked: {', '.join(error_seats)}"
-            return render(request, 'movies/seat_selection.html', {
-                'theater': theaters,
-                'seats': seats,
-                'error': error_message
-            })
-            
-        return redirect('profile')
         
-    return render(request, 'movies/seat_selection.html', {'theater': theaters, 'seats': seats})
+        # Transaction ensures data consistency
+        with transaction.atomic():
+            # select_for_update() locks the selected rows until the transaction finishes
+            seats = Seat.objects.select_for_update().filter(
+                id__in=selected_seat_ids, 
+                theater=theater
+            )
+            
+            error_seats = []
+            for seat in seats:
+                if seat.is_booked:
+                    error_seats.append(seat.seat_number)
+                else:
+                    Booking.objects.create(
+                        user=request.user,
+                        seat=seat,
+                        movie=theater.movie,
+                        theater=theater
+                    )
+                    seat.is_booked = True
+                    seat.save()
+            
+            if error_seats:
+                return render(request, 'movies/seat_selection.html', {
+                    'theater': theater,
+                    'seats': Seat.objects.filter(theater=theater),
+                    'error': f"Seats already taken: {', '.join(error_seats)}"
+                })
+        
+        return redirect('profile')
+            
+    seats = Seat.objects.filter(theater=theater)
+    return render(request, 'movies/seat_selection.html', {'theater': theater, 'seats': seats})

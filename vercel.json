@@ -1,14 +1,18 @@
 {
   "builds": [
     {
-      "src": "Bookmyseat/Bookmyseat/wsgi.py",
+      "src": "Bookmyseat/wsgi.py",
       "use": "@vercel/python"
     }
   ],
   "routes": [
     {
+      "src": "/static/(.*)",
+      "dest": "/static/$1"
+    },
+    {
       "src": "/(.*)",
-      "dest": "Bookmyseat/Bookmyseat/wsgi.py"
+      "dest": "Bookmyseat/wsgi.py"
     }
   ]
 }
